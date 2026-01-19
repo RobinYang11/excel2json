@@ -22,7 +22,7 @@
 
 ```yaml
 dev_dependencies:
-  excel2json: ^1.0.6
+  excel2json: ^1.0.8
 ```
 
 然后运行：
@@ -99,8 +99,8 @@ dart run excel2json -version
 
 **输出示例：**
 ```
-Version: 1.0.6
-Build Time: 2026-01-16 10:30:45
+Version: 1.0.8
+Build Time: 2026-01-19 13:19:00
 Git Commit: a1b2c3d
 ```
 
