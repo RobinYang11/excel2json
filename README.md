@@ -22,7 +22,11 @@
 
 ```yaml
 dev_dependencies:
-  excel2json: ^1.0.5
+  excel2json:
+    git:
+      url: https://github.com/your-username/excel2json.git
+      # 或者使用本地路径
+      # path: ../excel2json
 ```
 
 然后运行：
@@ -30,8 +34,6 @@ dev_dependencies:
 ```bash
 flutter pub get
 ```
-
-安装完成后，可以使用 `dart run excel2json` 或直接使用 `excel2json` 命令。
 
 ### 基本使用
 

@@ -1,8 +1,8 @@
 name: excel2json
 description: "A Flutter development dependency tool for converting Excel files to JSON files and generating Dart LocaleKeys class. Supports Windows and macOS."
-version: 1.0.5
-homepage: https://github.com/your-username/excel2json
-repository: https://github.com/your-username/excel2json
+version: 1.0.6
+homepage: https://github.com/RobinYang11/excel2json
+repository: https://github.com/RobinYang11/excel2json
 
 environment:
   sdk: ^3.9.0
