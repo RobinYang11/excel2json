@@ -7,7 +7,14 @@ import 'package:excel2json/excel2json.dart';
 /// Excel to JSON converter entry point
 /// This script detects the platform and executes the corresponding binary
 void main(List<String> arguments) async {
-  final scriptDir = Excel2Json.getScriptDirectory();
+  String scriptDir;
+  try {
+    scriptDir = Excel2Json.getScriptDirectory();
+  } catch (e) {
+    print('❌ Error: ${e.toString()}');
+    exit(1);
+  }
+  
   final binaryPath = Excel2Json.getBinaryPath(scriptDir);
   
   if (binaryPath == null) {
@@ -20,6 +27,8 @@ void main(List<String> arguments) async {
   final binary = File(binaryPath);
   if (!await binary.exists()) {
     print('❌ Error: Binary not found at: $binaryPath');
+    print('Script directory: $scriptDir');
+    print('Please ensure the package is properly installed with: flutter pub get');
     exit(1);
   }
 

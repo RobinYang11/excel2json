@@ -35,6 +35,15 @@ class Excel2Json {
         if (packageBinDir != null && Directory(packageBinDir).existsSync()) {
           return packageBinDir;
         }
+        // If we can't find the cache directory, this is an error
+        // Don't fallback to scriptPath as it won't have the binaries
+        throw Exception(
+          'Cannot find excel2json package in pub cache. '
+          'Please run: flutter pub get\n'
+          'Searched in:\n'
+          '- ${Directory.current.path}/.dart_tool/pub/cache/hosted/pub.dev\n'
+          '- ${Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '~'}/.pub-cache/hosted/pub.dev'
+        );
       }
       
       // Check if we're running from the package directory
@@ -69,45 +78,7 @@ class Excel2Json {
       
       final cwd = Directory.current.path;
       
-      // Try to find in project's pub cache first
-      final pubCacheDir = Directory('$cwd/.dart_tool/pub/cache/hosted/pub.dev');
-      if (pubCacheDir.existsSync()) {
-        final entries = pubCacheDir.listSync();
-        for (final entry in entries) {
-          if (entry is Directory) {
-            final dirName = entry.path.split(Platform.pathSeparator).last;
-            if (dirName.startsWith('excel2json-')) {
-              final binDir = '${entry.path}/bin';
-              if (Directory(binDir).existsSync()) {
-                return binDir;
-              }
-            }
-          }
-        }
-      }
-      
-      // Try global pub cache
-      final homeDir = Platform.environment['HOME'] ?? 
-                     Platform.environment['USERPROFILE'] ?? '';
-      if (homeDir.isNotEmpty) {
-        final globalPubCache = Directory('$homeDir/.pub-cache/hosted/pub.dev');
-        if (globalPubCache.existsSync()) {
-          final entries = globalPubCache.listSync();
-          for (final entry in entries) {
-            if (entry is Directory) {
-              final dirName = entry.path.split(Platform.pathSeparator).last;
-              if (dirName.startsWith('excel2json-')) {
-                final binDir = '${entry.path}/bin';
-                if (Directory(binDir).existsSync()) {
-                  return binDir;
-                }
-              }
-            }
-          }
-        }
-      }
-      
-      // Alternative: try to resolve from script path
+      // Strategy 1: Try to resolve from script path
       // Script path: .dart_tool/pub/bin/excel2json/
       // Go up to find .dart_tool, then navigate to cache
       if (scriptPath.contains('.dart_tool')) {
@@ -119,15 +90,92 @@ class Excel2Json {
           final cacheDir = Directory(cachePath);
           if (cacheDir.existsSync()) {
             final entries = cacheDir.listSync();
-            for (final entry in entries) {
-              if (entry is Directory) {
-                final dirName = entry.path.split(Platform.pathSeparator).last;
-                if (dirName.startsWith('excel2json-')) {
-                  final binDir = '${entry.path}/bin';
-                  if (Directory(binDir).existsSync()) {
-                    return binDir;
-                  }
+            // Sort to get the latest version first
+            final sortedEntries = entries.whereType<Directory>()
+                .where((d) {
+                  final dirName = d.path.split(Platform.pathSeparator).last;
+                  return dirName.startsWith('excel2json-');
+                })
+                .toList()
+              ..sort((a, b) {
+                // Sort by version number (descending)
+                final aVersion = a.path.split(Platform.pathSeparator).last.replaceFirst('excel2json-', '');
+                final bVersion = b.path.split(Platform.pathSeparator).last.replaceFirst('excel2json-', '');
+                return bVersion.compareTo(aVersion);
+              });
+            for (final entry in sortedEntries) {
+              final binDir = '${entry.path}/bin';
+              if (Directory(binDir).existsSync()) {
+                // Verify that the bin directory actually contains the platform-specific binaries
+                final hasMacos = Directory('$binDir/macos').existsSync() || 
+                                 Directory('$binDir/windows').existsSync();
+                if (hasMacos) {
+                  return binDir;
                 }
+              }
+            }
+          }
+        }
+      }
+      
+      // Strategy 2: Try to find in project's pub cache
+      final pubCacheDir = Directory('$cwd/.dart_tool/pub/cache/hosted/pub.dev');
+      if (pubCacheDir.existsSync()) {
+        final entries = pubCacheDir.listSync();
+        // Sort to get the latest version first
+        final sortedEntries = entries.whereType<Directory>()
+            .where((d) {
+              final dirName = d.path.split(Platform.pathSeparator).last;
+              return dirName.startsWith('excel2json-');
+            })
+            .toList()
+          ..sort((a, b) {
+            // Sort by version number (descending)
+            final aVersion = a.path.split(Platform.pathSeparator).last.replaceFirst('excel2json-', '');
+            final bVersion = b.path.split(Platform.pathSeparator).last.replaceFirst('excel2json-', '');
+            return bVersion.compareTo(aVersion);
+          });
+        for (final entry in sortedEntries) {
+          final binDir = '${entry.path}/bin';
+          if (Directory(binDir).existsSync()) {
+            // Verify that the bin directory actually contains the platform-specific binaries
+            final hasMacos = Directory('$binDir/macos').existsSync() || 
+                             Directory('$binDir/windows').existsSync();
+            if (hasMacos) {
+              return binDir;
+            }
+          }
+        }
+      }
+      
+      // Strategy 3: Try global pub cache
+      final homeDir = Platform.environment['HOME'] ?? 
+                     Platform.environment['USERPROFILE'] ?? '';
+      if (homeDir.isNotEmpty) {
+        final globalPubCache = Directory('$homeDir/.pub-cache/hosted/pub.dev');
+        if (globalPubCache.existsSync()) {
+          final entries = globalPubCache.listSync();
+          // Sort to get the latest version first
+          final sortedEntries = entries.whereType<Directory>()
+              .where((d) {
+                final dirName = d.path.split(Platform.pathSeparator).last;
+                return dirName.startsWith('excel2json-');
+              })
+              .toList()
+            ..sort((a, b) {
+              // Sort by version number (descending)
+              final aVersion = a.path.split(Platform.pathSeparator).last.replaceFirst('excel2json-', '');
+              final bVersion = b.path.split(Platform.pathSeparator).last.replaceFirst('excel2json-', '');
+              return bVersion.compareTo(aVersion);
+            });
+          for (final entry in sortedEntries) {
+            final binDir = '${entry.path}/bin';
+            if (Directory(binDir).existsSync()) {
+              // Verify that the bin directory actually contains the platform-specific binaries
+              final hasMacos = Directory('$binDir/macos').existsSync() || 
+                               Directory('$binDir/windows').existsSync();
+              if (hasMacos) {
+                return binDir;
               }
             }
           }

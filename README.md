@@ -22,11 +22,7 @@
 
 ```yaml
 dev_dependencies:
-  excel2json:
-    git:
-      url: https://github.com/your-username/excel2json.git
-      # 或者使用本地路径
-      # path: ../excel2json
+  excel2json: ^1.0.6
 ```
 
 然后运行：
@@ -34,6 +30,8 @@ dev_dependencies:
 ```bash
 flutter pub get
 ```
+
+安装完成后，可以使用 `dart run excel2json` 或直接使用 `excel2json` 命令。
 
 ### 基本使用
 
@@ -59,7 +57,7 @@ excel2json -file=./assets/abc.xlsx
 |------|------|--------|------|
 | `-file` | - | `./assets/abc.xlsx` | 输入的 Excel 文件路径 |
 | `-output_path` | - | `./` | JSON 文件的输出目录路径 |
-| `-dart_file` | - | `./locale_keys.dart` | 生成的 Dart 文件路径 |
+| `-dart_file_path` | - | `./` | Dart 文件输出目录（文件名固定为 `locale_keys.dart`） |
 | `-version` | - | `false` | 显示版本信息、构建时间和 Git 提交哈希 |
 
 ### 参数详细说明
@@ -82,13 +80,13 @@ dart run excel2json -output_path=./output/
 dart run excel2json -output_path=/tmp/json_files/
 ```
 
-#### `-dart_file`
-指定生成的 Dart LocaleKeys 类文件的完整路径（包括文件名）。
+#### `-dart_file_path`
+指定生成的 Dart LocaleKeys 类文件的输出目录。文件名固定为 `locale_keys.dart`。
 
 **示例：**
 ```bash
-dart run excel2json -dart_file=./lib/locale_keys.dart
-dart run excel2json -dart_file=./generated/locale_keys.dart
+dart run excel2json -dart_file_path=./lib
+dart run excel2json -dart_file_path=./generated
 ```
 
 #### `-version`
@@ -101,7 +99,7 @@ dart run excel2json -version
 
 **输出示例：**
 ```
-Version: 1.0.5
+Version: 1.0.6
 Build Time: 2026-01-16 10:30:45
 Git Commit: a1b2c3d
 ```
@@ -131,7 +129,7 @@ dart run excel2json -file=./data/translations.xlsx -output_path=./output/
 dart run excel2json \
   -file=./data/translations.xlsx \
   -output_path=./output/json/ \
-  -dart_file=./lib/locale_keys.dart
+  -dart_file_path=./lib
 ```
 
 ### 示例 4：Windows 使用
@@ -201,7 +199,8 @@ class LocaleKeys {
 
 ### Dart 文件
 
-- 文件名：`locale_keys.dart`（可通过 `-dart_file` 参数自定义）
+- 文件名：`locale_keys.dart`（固定文件名，不可自定义）
+- 输出目录：通过 `-dart_file_path` 参数指定
 - 内容：包含所有表头转换后的拼音 key，作为静态常量
 - 用途：用于 Flutter/Dart 项目的国际化配置
 
