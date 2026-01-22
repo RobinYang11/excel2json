@@ -84,6 +84,98 @@ jobs:
           echo "Updated version to $LATEST_VERSION"
           cat pubspec.yaml | grep '^version:'
 
+      - name: Download and copy binaries from excel2x
+        if: steps.version_check.outputs.needs_update == 'true'
+        run: |
+          LATEST_VERSION="${{ steps.excel2x_release.outputs.latest_version }}"
+          
+          echo "Downloading binaries from excel2x v$LATEST_VERSION..."
+          
+          # 创建临时目录
+          TEMP_DIR=$(mktemp -d)
+          cd "$TEMP_DIR"
+          
+          # 下载整个仓库的 zip 文件（包含 dist 目录）
+          echo "Downloading excel2x repository..."
+          curl -L -o excel2x.zip "https://github.com/RobinYang11/excel2x/archive/refs/tags/v${LATEST_VERSION}.zip"
+          unzip -q excel2x.zip
+          
+          # 查找 dist 目录或根目录中的二进制文件
+          if [ -d "excel2x-${LATEST_VERSION}/dist" ]; then
+            DIST_DIR="excel2x-${LATEST_VERSION}/dist"
+          elif [ -d "excel2x-${LATEST_VERSION}" ]; then
+            DIST_DIR="excel2x-${LATEST_VERSION}"
+          else
+            echo "Error: Cannot find excel2x directory"
+            exit 1
+          fi
+          
+          cd "$DIST_DIR"
+          echo "Looking for binaries in: $(pwd)"
+          ls -la || true
+          
+          # 创建项目的 bin 目录结构
+          cd ${{ github.workspace }}
+          mkdir -p bin/macos/arm64
+          mkdir -p bin/macos/intel
+          mkdir -p bin/windows
+          mkdir -p bin/linux/x64
+          mkdir -p bin/linux/arm64
+          
+          # 根据 excel2x 的文件命名规则复制文件
+          # excel2x 的文件命名: excel2json_macos_intel, excel2json_macos_arm64, excel2json.exe, excel2json_linux
+          cd "$TEMP_DIR/$DIST_DIR"
+          
+          # macOS Intel
+          if [ -f "excel2json_macos_intel" ]; then
+            cp excel2json_macos_intel ${{ github.workspace }}/bin/macos/intel/excel2json
+            chmod +x ${{ github.workspace }}/bin/macos/intel/excel2json
+            echo "✅ Copied excel2json_macos_intel to bin/macos/intel/excel2json"
+          fi
+          
+          # macOS ARM64
+          if [ -f "excel2json_macos_arm64" ]; then
+            cp excel2json_macos_arm64 ${{ github.workspace }}/bin/macos/arm64/excel2json
+            chmod +x ${{ github.workspace }}/bin/macos/arm64/excel2json
+            echo "✅ Copied excel2json_macos_arm64 to bin/macos/arm64/excel2json"
+          fi
+          
+          # Windows
+          if [ -f "excel2json.exe" ]; then
+            cp excel2json.exe ${{ github.workspace }}/bin/windows/excel2json.exe
+            echo "✅ Copied excel2json.exe to bin/windows/excel2json.exe"
+          fi
+          
+          # Linux (默认 x64，如果有 arm64 版本需要单独处理)
+          if [ -f "excel2json_linux" ]; then
+            cp excel2json_linux ${{ github.workspace }}/bin/linux/x64/excel2json
+            chmod +x ${{ github.workspace }}/bin/linux/x64/excel2json
+            echo "✅ Copied excel2json_linux to bin/linux/x64/excel2json"
+          fi
+          
+          # 如果 excel2x 有单独的 Linux ARM64 版本
+          if [ -f "excel2json_linux_arm64" ] || [ -f "excel2json_linux_aarch64" ]; then
+            ARM64_FILE=$(ls excel2json_linux_arm64 excel2json_linux_aarch64 2>/dev/null | head -1)
+            if [ -n "$ARM64_FILE" ]; then
+              cp "$ARM64_FILE" ${{ github.workspace }}/bin/linux/arm64/excel2json
+              chmod +x ${{ github.workspace }}/bin/linux/arm64/excel2json
+              echo "✅ Copied $ARM64_FILE to bin/linux/arm64/excel2json"
+            fi
+          fi
+          
+          # 验证文件是否复制成功
+          cd ${{ github.workspace }}
+          echo ""
+          echo "📦 Binary files status:"
+          ls -lh bin/macos/arm64/excel2json 2>/dev/null && echo "  ✅ macOS ARM64" || echo "  ❌ macOS ARM64 missing"
+          ls -lh bin/macos/intel/excel2json 2>/dev/null && echo "  ✅ macOS Intel" || echo "  ❌ macOS Intel missing"
+          ls -lh bin/windows/excel2json.exe 2>/dev/null && echo "  ✅ Windows" || echo "  ❌ Windows missing"
+          ls -lh bin/linux/x64/excel2json 2>/dev/null && echo "  ✅ Linux x64" || echo "  ❌ Linux x64 missing"
+          ls -lh bin/linux/arm64/excel2json 2>/dev/null && echo "  ✅ Linux ARM64" || echo "  ⚠️  Linux ARM64 (optional)"
+          
+          # 清理临时文件
+          rm -rf "$TEMP_DIR"
+
       - name: Configure Git
         if: steps.version_check.outputs.needs_update == 'true'
         run: |
@@ -95,12 +187,13 @@ jobs:
         run: |
           LATEST_VERSION="${{ steps.excel2x_release.outputs.latest_version }}"
           git add pubspec.yaml
-          git commit -m "chore: sync version to $LATEST_VERSION (from excel2x)"
+          git add bin/
+          git commit -m "chore: sync version to $LATEST_VERSION and update binaries from excel2x"
           git tag -a "v$LATEST_VERSION" -m "Version $LATEST_VERSION - synced with excel2x"
           git push origin main
           git push origin "v$LATEST_VERSION"
           
-          echo "✅ Version updated and pushed. Build will be triggered automatically."
+          echo "✅ Version and binaries updated and pushed. Build will be triggered automatically."
 
       - name: Summary
         run: |
