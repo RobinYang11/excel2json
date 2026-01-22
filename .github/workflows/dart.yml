@@ -93,7 +93,7 @@ jobs:
             echo "📝 To enable automatic publishing to pub.dev:"
             echo "1. Get the full credentials.json content from your local file:"
             echo "   cat ~/Library/Application\\ Support/dart/pub-credentials.json"
-            echo "2. Copy the entire JSON content"
+            echo "2. Copy the entire JSON content (one line, no formatting)"
             echo "3. Go to your GitHub repository → Settings → Secrets and variables → Actions"
             echo "4. Add a new secret named 'PUB_DEV_REFRESH_TOKEN' with the full JSON content"
             echo ""
@@ -104,19 +104,33 @@ jobs:
           # 创建 pub cache 目录
           mkdir -p ~/.pub-cache
           
-          # 将 refresh token 写入 credentials.json
-          # 如果提供的是完整的 JSON，直接使用；如果只是 refresh token，需要构造完整 JSON
-          if echo "$PUB_DEV_REFRESH_TOKEN" | grep -q '{'; then
-            # 如果已经是 JSON 格式，直接写入
-            echo "$PUB_DEV_REFRESH_TOKEN" > ~/.pub-cache/credentials.json
+          # 将内容写入文件
+          echo "$PUB_DEV_REFRESH_TOKEN" > ~/.pub-cache/credentials.json
+          
+          # 验证是否是有效的 JSON
+          if python3 -c "import json, sys; json.load(open('$HOME/.pub-cache/credentials.json'))" 2>/dev/null; then
+            echo "✅ Valid JSON format detected"
           else
-            # 如果只是 refresh token，需要构造完整的 credentials.json
-            # 注意：这需要 accessToken 和其他字段，所以最好提供完整的 JSON
-            echo "⚠️ Please provide the full credentials.json content as the secret value"
+            echo "❌ Invalid JSON format detected"
+            echo ""
+            echo "The PUB_DEV_REFRESH_TOKEN secret must contain the complete credentials.json content."
+            echo ""
+            echo "To get the correct value, run this command on your local machine:"
+            echo "  cat ~/Library/Application\\ Support/dart/pub-credentials.json | jq -c ."
+            echo ""
+            echo "Or if jq is not available:"
+            echo "  cat ~/Library/Application\\ Support/dart/pub-credentials.json"
+            echo ""
+            echo "Then copy the entire output (as a single line, no line breaks) to the PUB_DEV_REFRESH_TOKEN secret."
+            echo ""
+            echo "Current secret value preview (first 100 chars):"
+            echo "${PUB_DEV_REFRESH_TOKEN:0:100}..."
+            echo ""
+            echo "Expected format should start with: {\"accessToken\":..."
             exit 1
           fi
           
-          echo "✅ Authentication configured"
+          echo "✅ Authentication configured successfully"
 
       - name: Publish to pub.dev
         env:
