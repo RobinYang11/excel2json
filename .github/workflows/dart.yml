@@ -86,16 +86,16 @@ jobs:
       - name: Publish to pub.dev
         env:
           PUB_HOSTED_URL: https://pub.dartlang.org
-          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
+          PUB_DEV_REFRESH_TOKEN: ${{ secrets.PUB_DEV_REFRESH_TOKEN }}
         run: |
-          if [ -z "$PUB_TOKEN" ]; then
-            echo "⚠️ PUB_TOKEN not set, skipping publish"
+          if [ -z "$PUB_DEV_REFRESH_TOKEN" ]; then
+            echo "⚠️ PUB_DEV_REFRESH_TOKEN not set, skipping publish"
             echo ""
             echo "📝 To enable automatic publishing to pub.dev:"
             echo "1. Visit https://pub.dev/settings/tokens"
             echo "2. Create a new token (or use existing one)"
             echo "3. Go to your GitHub repository → Settings → Secrets and variables → Actions"
-            echo "4. Add a new secret named 'PUB_TOKEN' with the token value"
+            echo "4. Add a new secret named 'PUB_DEV_REFRESH_TOKEN' with the token value"
             echo ""
             exit 0
           fi
