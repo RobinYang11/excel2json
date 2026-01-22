@@ -1,4 +1,10 @@
 
+
+
+## 1.0.9+2
+
+fix build shell
+
 ## 1.0.9+1
 
 fix build flow
