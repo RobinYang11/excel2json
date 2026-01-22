@@ -16,6 +16,14 @@ class Excel2Json {
       }
     } else if (os == 'windows') {
       return '$scriptDir/windows/excel2json.exe';
+    } else if (os == 'linux') {
+      // Check architecture for Linux
+      final arch = getLinuxArchitecture();
+      if (arch == 'arm64' || arch == 'aarch64') {
+        return '$scriptDir/linux/arm64/excel2json';
+      } else {
+        return '$scriptDir/linux/x64/excel2json';
+      }
     }
 
     return null;
@@ -206,6 +214,22 @@ class Excel2Json {
   /// Check if the current platform is supported
   static bool isPlatformSupported() {
     final os = Platform.operatingSystem;
-    return os == 'macos' || os == 'windows';
+    return os == 'macos' || os == 'windows' || os == 'linux';
+  }
+
+  /// Detect Linux architecture
+  static String getLinuxArchitecture() {
+    try {
+      final result = Process.runSync('uname', ['-m']);
+      final arch = result.stdout.toString().trim();
+      if (arch == 'arm64' || arch == 'aarch64') {
+        return 'arm64';
+      } else {
+        return 'x64';
+      }
+    } catch (e) {
+      // Default to x64 if detection fails
+      return 'x64';
+    }
   }
 }

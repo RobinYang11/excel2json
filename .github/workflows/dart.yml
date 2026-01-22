@@ -8,6 +8,8 @@ name: Dart
 on:
   push:
     branches: [ "main" ]
+    tags:
+      - 'v*'  # 当推送 tag 时也触发构建
   pull_request:
     branches: [ "main" ]
 

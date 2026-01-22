@@ -4,12 +4,14 @@
 
 这是一个 Flutter 开发依赖工具，用于将 Excel 文件转换为 JSON 文件和 Dart LocaleKeys 类。特别适合需要国际化配置和多语言支持的 Flutter 项目。
 
+本工具基于 [excel2x](https://github.com/RobinYang11/excel2x)（Go 语言编写的 Excel 转换工具）封装，提供了 Flutter/Dart 友好的使用方式。
+
 **主要功能：**
 - 📊 读取 Excel 表格数据
 - 🔤 使用拼音库自动转换中文 key 为拼音
 - 📄 为每一行数据生成独立的 JSON 文件
 - 🎯 自动生成 Dart 语言的 LocaleKeys 类文件
-- 🔧 跨平台支持（macOS、Windows）
+- 🔧 跨平台支持（macOS、Windows、Linux）
 - 📦 作为 Flutter 开发依赖使用，无需手动下载二进制文件
 
 ---
@@ -147,17 +149,21 @@ dart run excel2json -file=C:\data\translations.xlsx -output_path=C:\output\
 
 Excel 文件必须包含名为 `Sheet1` 的工作表，格式要求如下：
 
-1. **第一行（表头）**：作为 JSON 的 key，支持中文，程序会自动转换为拼音
-2. **第一列**：作为输出 JSON 文件的文件名（不含扩展名）
-3. **数据区域**：从第二行开始，每行对应一个 JSON 文件
+1. **第一行**：作为输出 JSON 文件的文件名（不含扩展名），**必须是英文标识**（如：`zh`、`en`、`ja` 等）
+2. **第一列**：作为 JSON 的 key，支持中文，程序会自动转换为拼音
+3. **数据区域**：从第二行第二列开始，每行对应一个 JSON 文件
 
 ### 示例 Excel 结构
 
-| 文件名 | 中文标题 | English Title | 日本語タイトル |
-|--------|---------|---------------|----------------|
-| zh | 你好 | Hello | こんにちは |
-| en | 世界 | World | 世界 |
-| ja | 测试 | Test | テスト |
+| （第一列，用于生成key） | zh（第一行，JSON文件名） | en    | ja    |
+| ------------- | --------------- | ----- | ----- |
+| 中文标题          | 你好              | Hello | こんにちは |
+| 世界            | 世界              | World | 世界    |
+| 测试            | 测试              | Test  | テスト   |
+
+**说明：**
+- **第一行**：必须是英文标识（如 `zh`、`en`、`ja`），用于生成 JSON 文件名（如 `zh.json`、`en.json`）
+- **第一列**：是中文标题，用于生成 JSON 的 key（程序会自动转换为拼音，去掉空格和特殊字符）
 
 ### 转换结果
 
@@ -165,25 +171,37 @@ Excel 文件必须包含名为 `Sheet1` 的工作表，格式要求如下：
 
 `zh.json`:
 ```json
-{"zhongwenbiaoti":"你好","EnglishTitle":"Hello","日本語タイトル":"こんにちは"}
+{
+  "zhongwenbiaoti": "你好",
+  "shijie": "世界",
+  "ceshi": "测试"
+}
 ```
 
 `en.json`:
 ```json
-{"zhongwenbiaoti":"世界","EnglishTitle":"World","日本語タイトル":"世界"}
+{
+  "zhongwenbiaoti": "Hello",
+  "shijie": "World",
+  "ceshi": "Test"
+}
 ```
 
 `ja.json`:
 ```json
-{"zhongwenbiaoti":"测试","EnglishTitle":"Test","日本語タイトル":"テスト"}
+{
+  "zhongwenbiaoti": "こんにちは",
+  "shijie": "世界",
+  "ceshi": "テスト"
+}
 ```
 
 **生成的 Dart 文件 (`locale_keys.dart`):**
 ```dart
 class LocaleKeys {
   static const zhongwenbiaoti = 'zhongwenbiaoti';
-  static const EnglishTitle = 'EnglishTitle';
-  static const 日本語タイトル = '日本語タイトル';
+  static const shijie = 'shijie';
+  static const ceshi = 'ceshi';
 }
 ```
 
@@ -193,8 +211,8 @@ class LocaleKeys {
 
 ### JSON 文件
 
-- 文件名：使用 Excel 第一列的值作为文件名（`.json` 扩展名）
-- 内容：每行数据转换为一个 JSON 对象，key 为第一行表头（中文转拼音），value 为对应单元格的值
+- 文件名：使用 Excel 第一行的值作为文件名（`.json` 扩展名）
+- 内容：每列数据转换为一个 JSON 对象，key 为第一列的值（中文转拼音），value 为对应单元格的值
 - 位置：保存在 `-output_path` 指定的目录中
 
 ### Dart 文件
@@ -212,7 +230,7 @@ class LocaleKeys {
 
 - ✅ **macOS** (Intel 和 Apple Silicon/M1/M2/M3)
 - ✅ **Windows**
-- ❌ Linux（暂不支持）
+- ✅ **Linux** (x64 和 ARM64)
 
 工具会自动检测运行平台并选择对应的二进制文件执行。
 
@@ -263,12 +281,21 @@ dart run bin/excel2json.dart -file=./assets/abc.xlsx
 
 ### 构建和发布
 
-本工具使用预编译的二进制文件（Go 语言编写），二进制文件位于：
+本工具基于 [excel2x](https://github.com/RobinYang11/excel2x) 项目，使用预编译的二进制文件（Go 语言编写），二进制文件位于：
 - `bin/macos/arm64/excel2json` - macOS Apple Silicon
 - `bin/macos/intel/excel2json` - macOS Intel
 - `bin/windows/excel2json.exe` - Windows
+- `bin/linux/x64/excel2json` - Linux x64
+- `bin/linux/arm64/excel2json` - Linux ARM64
+
+**注意：** 二进制文件需要从 [excel2x](https://github.com/RobinYang11/excel2x) 项目构建并放置到对应目录中。
 
 ---
+
+## 相关项目
+
+本工具基于以下项目：
+- [excel2x](https://github.com/RobinYang11/excel2x) - Go 语言编写的 Excel 转换工具，支持转换为 JSON、Dart、Java、Go map 等格式
 
 ## 许可证
 

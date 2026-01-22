@@ -1,0 +1,113 @@
+name: Sync Version from excel2x
+
+on:
+  # 每天 UTC 时间 0:00 检查一次（北京时间 8:00）
+  schedule:
+    - cron: '0 0 * * *'
+  # 支持手动触发
+  workflow_dispatch:
+  # 当 excel2x 有新的 release 时，可以通过 repository_dispatch 触发
+  # 但这需要 excel2x 项目配置，暂时使用定时检查
+
+jobs:
+  check-and-update-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Get current version from pubspec.yaml
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Get latest release from excel2x
+        id: excel2x_release
+        run: |
+          # 获取 excel2x 的最新 release
+          RESPONSE=$(curl -s https://api.github.com/repos/RobinYang11/excel2x/releases/latest)
+          
+          # 检查是否有 release
+          if echo "$RESPONSE" | jq -e '.tag_name' > /dev/null 2>&1; then
+            LATEST_VERSION=$(echo "$RESPONSE" | jq -r '.tag_name' | sed 's/^v//')
+          else
+            echo "No releases found, trying tags..."
+            # 如果 releases 为空，尝试获取最新的 tag
+            TAG_RESPONSE=$(curl -s https://api.github.com/repos/RobinYang11/excel2x/tags | jq -r '.[0].name' | sed 's/^v//')
+            LATEST_VERSION=$TAG_RESPONSE
+          fi
+          
+          if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" == "null" ]; then
+            echo "Error: Failed to get latest version from excel2x"
+            exit 1
+          fi
+          
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "Latest excel2x version: $LATEST_VERSION"
+
+      - name: Compare versions
+        id: version_check
+        run: |
+          CURRENT="${{ steps.current_version.outputs.current_version }}"
+          LATEST="${{ steps.excel2x_release.outputs.latest_version }}"
+          
+          echo "Current: $CURRENT"
+          echo "Latest: $LATEST"
+          
+          if [ "$CURRENT" != "$LATEST" ]; then
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+            echo "Version mismatch detected. Updating from $CURRENT to $LATEST"
+          else
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+            echo "Versions are in sync. No update needed."
+          fi
+
+      - name: Update version in pubspec.yaml
+        if: steps.version_check.outputs.needs_update == 'true'
+        run: |
+          LATEST_VERSION="${{ steps.excel2x_release.outputs.latest_version }}"
+          # 在 Linux runner 上使用 sed
+          sed -i "s/^version: .*/version: $LATEST_VERSION/" pubspec.yaml
+          
+          echo "Updated version to $LATEST_VERSION"
+          cat pubspec.yaml | grep '^version:'
+
+      - name: Configure Git
+        if: steps.version_check.outputs.needs_update == 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and tag version update
+        if: steps.version_check.outputs.needs_update == 'true'
+        run: |
+          LATEST_VERSION="${{ steps.excel2x_release.outputs.latest_version }}"
+          git add pubspec.yaml
+          git commit -m "chore: sync version to $LATEST_VERSION (from excel2x)"
+          git tag -a "v$LATEST_VERSION" -m "Version $LATEST_VERSION - synced with excel2x"
+          git push origin main
+          git push origin "v$LATEST_VERSION"
+          
+          echo "✅ Version updated and pushed. Build will be triggered automatically."
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.version_check.outputs.needs_update }}" == "true" ]; then
+            echo "✅ Version updated successfully!"
+            echo "Updated from ${{ steps.current_version.outputs.current_version }} to ${{ steps.excel2x_release.outputs.latest_version }}"
+          else
+            echo "ℹ️ No version update needed. Current version is up to date."
+          fi
+

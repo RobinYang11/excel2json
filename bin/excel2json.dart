@@ -19,7 +19,7 @@ void main(List<String> arguments) async {
   
   if (binaryPath == null) {
     print('❌ Error: Unsupported platform: ${Platform.operatingSystem}');
-    print('Supported platforms: macOS (Intel/ARM), Windows');
+    print('Supported platforms: macOS (Intel/ARM), Windows, Linux (x64/ARM64)');
     exit(1);
   }
 
