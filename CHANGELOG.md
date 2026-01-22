@@ -1,3 +1,8 @@
+
+## 1.0.9+1
+
+fix build flow
+
 ## 1.0.9
 
 * 添加 Linux 平台支持（x64 和 ARM64）
