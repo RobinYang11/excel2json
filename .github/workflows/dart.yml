@@ -83,21 +83,50 @@ jobs:
             exit 1
           fi
 
-      - name: Publish to pub.dev
+      - name: Configure pub.dev authentication
         env:
-          PUB_HOSTED_URL: https://pub.dartlang.org
           PUB_DEV_REFRESH_TOKEN: ${{ secrets.PUB_DEV_REFRESH_TOKEN }}
         run: |
           if [ -z "$PUB_DEV_REFRESH_TOKEN" ]; then
             echo "⚠️ PUB_DEV_REFRESH_TOKEN not set, skipping publish"
             echo ""
             echo "📝 To enable automatic publishing to pub.dev:"
-            echo "1. Visit https://pub.dev/settings/tokens"
-            echo "2. Create a new token (or use existing one)"
+            echo "1. Get the full credentials.json content from your local file:"
+            echo "   cat ~/Library/Application\\ Support/dart/pub-credentials.json"
+            echo "2. Copy the entire JSON content"
             echo "3. Go to your GitHub repository → Settings → Secrets and variables → Actions"
-            echo "4. Add a new secret named 'PUB_DEV_REFRESH_TOKEN' with the token value"
+            echo "4. Add a new secret named 'PUB_DEV_REFRESH_TOKEN' with the full JSON content"
             echo ""
             exit 0
           fi
+          
+          echo "Setting up pub.dev authentication..."
+          # 创建 pub cache 目录
+          mkdir -p ~/.pub-cache
+          
+          # 将 refresh token 写入 credentials.json
+          # 如果提供的是完整的 JSON，直接使用；如果只是 refresh token，需要构造完整 JSON
+          if echo "$PUB_DEV_REFRESH_TOKEN" | grep -q '{'; then
+            # 如果已经是 JSON 格式，直接写入
+            echo "$PUB_DEV_REFRESH_TOKEN" > ~/.pub-cache/credentials.json
+          else
+            # 如果只是 refresh token，需要构造完整的 credentials.json
+            # 注意：这需要 accessToken 和其他字段，所以最好提供完整的 JSON
+            echo "⚠️ Please provide the full credentials.json content as the secret value"
+            exit 1
+          fi
+          
+          echo "✅ Authentication configured"
+
+      - name: Publish to pub.dev
+        env:
+          PUB_HOSTED_URL: https://pub.dartlang.org
+        run: |
+          if [ ! -f ~/.pub-cache/credentials.json ]; then
+            echo "⚠️ credentials.json not found, skipping publish"
+            exit 0
+          fi
+          
           echo "Publishing to pub.dev..."
+          # 使用 --force 避免交互式确认
           flutter pub publish --force
