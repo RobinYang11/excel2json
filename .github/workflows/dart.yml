@@ -101,32 +101,65 @@ jobs:
           fi
           
           echo "Setting up pub.dev authentication..."
-          # 创建 pub cache 目录
+          # 创建必要的目录
           mkdir -p ~/.pub-cache
+          mkdir -p ~/.config/dart
           
-          # 将内容写入文件
-          echo "$PUB_DEV_REFRESH_TOKEN" > ~/.pub-cache/credentials.json
-          
-          # 验证是否是有效的 JSON
-          if python3 -c "import json, sys; json.load(open('$HOME/.pub-cache/credentials.json'))" 2>/dev/null; then
-            echo "✅ Valid JSON format detected"
+          # 检测是否是完整的 credentials.json 格式（包含 accessToken）
+          if echo "$PUB_DEV_REFRESH_TOKEN" | grep -qE '^\s*\{.*"accessToken"'; then
+            # 是完整的 credentials.json，解析并提取 refreshToken
+            REFRESH_TOKEN=$(echo "$PUB_DEV_REFRESH_TOKEN" | python3 -c "import json, sys; print(json.load(sys.stdin).get('refreshToken', ''))" 2>/dev/null)
+            
+            if [ -n "$REFRESH_TOKEN" ] && [ "$REFRESH_TOKEN" != "None" ]; then
+              echo "✅ Extracted refreshToken from credentials.json"
+              # 使用 dart pub token add 配置 token（非交互式）
+              echo "$REFRESH_TOKEN" | dart pub token add https://pub.dev 2>&1 || {
+                echo "⚠️ dart pub token add failed, trying direct credentials.json method..."
+                # 备用方法：直接写入 credentials.json
+                echo "$PUB_DEV_REFRESH_TOKEN" > ~/.pub-cache/credentials.json
+                # 也写入到 macOS/Linux 的标准位置
+                mkdir -p "$HOME/Library/Application Support/dart" 2>/dev/null || true
+                if [ -d "$HOME/Library/Application Support/dart" ]; then
+                  echo "$PUB_DEV_REFRESH_TOKEN" > "$HOME/Library/Application Support/dart/pub-credentials.json"
+                fi
+              }
+            else
+              # 如果无法提取 refreshToken，直接使用完整的 credentials.json
+              echo "$PUB_DEV_REFRESH_TOKEN" > ~/.pub-cache/credentials.json
+              mkdir -p "$HOME/Library/Application Support/dart" 2>/dev/null || true
+              if [ -d "$HOME/Library/Application Support/dart" ]; then
+                echo "$PUB_DEV_REFRESH_TOKEN" > "$HOME/Library/Application Support/dart/pub-credentials.json"
+              fi
+            fi
+            
+            # 验证 JSON 格式
+            if python3 -c "import json, sys; json.load(open('$HOME/.pub-cache/credentials.json'))" 2>/dev/null; then
+              echo "✅ Valid credentials.json format detected"
+              echo "✅ Credentials file created at ~/.pub-cache/credentials.json"
+            else
+              echo "❌ Invalid JSON format"
+              exit 1
+            fi
           else
-            echo "❌ Invalid JSON format detected"
+            echo "❌ Invalid format detected"
             echo ""
             echo "The PUB_DEV_REFRESH_TOKEN secret must contain the complete credentials.json content."
             echo ""
             echo "To get the correct value, run this command on your local machine:"
             echo "  cat ~/Library/Application\\ Support/dart/pub-credentials.json | jq -c ."
             echo ""
-            echo "Or if jq is not available:"
-            echo "  cat ~/Library/Application\\ Support/dart/pub-credentials.json"
-            echo ""
-            echo "Then copy the entire output (as a single line, no line breaks) to the PUB_DEV_REFRESH_TOKEN secret."
-            echo ""
-            echo "Current secret value preview (first 100 chars):"
-            echo "${PUB_DEV_REFRESH_TOKEN:0:100}..."
+            echo "Then copy the entire output (as a single line) to the PUB_DEV_REFRESH_TOKEN secret."
             echo ""
             echo "Expected format should start with: {\"accessToken\":..."
+            exit 1
+          fi
+          
+          # 验证文件存在
+          if [ -f ~/.pub-cache/credentials.json ]; then
+            echo "✅ Credentials file verified at ~/.pub-cache/credentials.json"
+            echo "File size: $(wc -c < ~/.pub-cache/credentials.json) bytes"
+          else
+            echo "❌ Credentials file not found after creation"
             exit 1
           fi
           
@@ -141,6 +174,11 @@ jobs:
             exit 0
           fi
           
+          echo "Verifying credentials file..."
+          ls -lh ~/.pub-cache/credentials.json
+          echo ""
           echo "Publishing to pub.dev..."
           # 使用 --force 避免交互式确认
+          # 设置环境变量确保使用 credentials.json
+          export PUB_CACHE="$HOME/.pub-cache"
           flutter pub publish --force
