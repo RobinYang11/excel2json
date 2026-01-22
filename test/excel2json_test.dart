@@ -19,9 +19,16 @@ void main() {
         }
       });
 
-      test('should return false for unsupported platforms', () {
-        // This test will only pass on Linux or other unsupported platforms
+      test('should return true for Linux', () {
+        // This test will only pass on Linux
         if (Platform.isLinux) {
+          expect(Excel2Json.isPlatformSupported(), isTrue);
+        }
+      });
+
+      test('should return false for unsupported platforms', () {
+        // This test will only pass on truly unsupported platforms (not macOS, Windows, or Linux)
+        if (!Platform.isMacOS && !Platform.isWindows && !Platform.isLinux) {
           expect(Excel2Json.isPlatformSupported(), isFalse);
         }
       });
@@ -86,10 +93,24 @@ void main() {
         }
       });
 
-      test('should return null for unsupported platforms', () {
-        // This test verifies the logic, but will only work on Linux
-        // We can't easily mock Platform.operatingSystem, so we test the behavior
+      test('should return correct path for Linux', () {
         if (Platform.isLinux) {
+          const scriptDir = '/test/bin';
+          final path = Excel2Json.getBinaryPath(scriptDir);
+          expect(path, isNotNull);
+          expect(path, contains('linux'));
+          expect(path, anyOf(
+            contains('x64'),
+            contains('arm64'),
+          ));
+          expect(path, endsWith('excel2json'));
+        }
+      });
+
+      test('should return null for unsupported platforms', () {
+        // This test verifies the logic for truly unsupported platforms
+        // We can't easily mock Platform.operatingSystem, so we test the behavior
+        if (!Platform.isMacOS && !Platform.isWindows && !Platform.isLinux) {
           const scriptDir = '/test/bin';
           final path = Excel2Json.getBinaryPath(scriptDir);
           expect(path, isNull);
@@ -98,7 +119,7 @@ void main() {
 
       test('should construct path with correct script directory', () {
         const scriptDir = '/custom/path/bin';
-        if (Platform.isMacOS || Platform.isWindows) {
+        if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
           final path = Excel2Json.getBinaryPath(scriptDir);
           expect(path, isNotNull);
           expect(path, startsWith(scriptDir));
@@ -129,7 +150,7 @@ void main() {
 
     group('Integration tests', () {
       test('should get valid binary path on supported platforms', () {
-        if (Platform.isMacOS || Platform.isWindows) {
+        if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
           final scriptDir = Excel2Json.getScriptDirectory();
           final binaryPath = Excel2Json.getBinaryPath(scriptDir);
           
@@ -146,13 +167,19 @@ void main() {
           } else if (Platform.isWindows) {
             expect(binaryPath, contains('windows'));
             expect(binaryPath, endsWith('.exe'));
+          } else if (Platform.isLinux) {
+            expect(binaryPath, contains('linux'));
+            expect(binaryPath, anyOf(
+              contains('x64'),
+              contains('arm64'),
+            ));
           }
         }
       });
 
       test('should detect platform support correctly', () {
         final isSupported = Excel2Json.isPlatformSupported();
-        if (Platform.isMacOS || Platform.isWindows) {
+        if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
           expect(isSupported, isTrue);
         } else {
           expect(isSupported, isFalse);
