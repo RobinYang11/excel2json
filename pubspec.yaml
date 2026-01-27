@@ -5,7 +5,7 @@ homepage: https://github.com/RobinYang11/excel2json
 repository: https://github.com/RobinYang11/excel2json
 
 environment:
-  sdk: ^3.9.0
+  sdk: ^3.35.0
   flutter: ">=1.17.0"
 
 dependencies:
